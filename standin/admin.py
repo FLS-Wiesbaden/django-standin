@@ -18,5 +18,70 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from django.contrib import admin
+from django.contrib.admin import helpers
+from django.contrib import messages
+from django.shortcuts import redirect
+from django.template import RequestContext
+from standin.models import SchoolYear, Plan
+from standin.forms import PlanUploadForm
+from django.utils.translation import ugettext as _
 
-# Register your models here.
+@admin.register(Plan)
+class PlanAdmin(admin.ModelAdmin):
+	"""Creates admin interface for all uploaded plans.
+
+	But to add something, only upload is allowed!
+	"""
+	list_display = ('vpdtup', 'vpstand')
+    
+	def add_view(self, request):
+		context = RequestContext(request)
+		# has user permission?
+		if not self.has_add_permission(request):
+			raise PermissionDenied
+
+		if request.POST:
+			form = PlanUploadForm(request.POST, request.FILES)
+			if form.is_valid():
+				form.save()
+				# Add feedback for the user and return to the newsletter
+				# overview page
+				messages.add_message(
+					request,
+					messages.SUCCESS,
+					_('Plan uploaded.')
+					)
+				return redirect('admin:standin_plan_changelist')
+		else:
+			form = PlanUploadForm()
+
+		obj = None
+		formsets, inline_instances = self._create_formsets(request, None, change=False)
+		adminForm = helpers.AdminForm(
+			form,
+			[(None, {'fields': ['plan']})],
+			{},
+		)
+		media = self.media + adminForm.media
+		inline_formsets = self.get_inline_formsets(request, formsets, inline_instances, obj)
+		for inline_formset in inline_formsets:
+			media = media + inline_formset.media
+
+		context = dict(self.admin_site.each_context(request),
+			title=_('Upload a new plan'),
+			adminform=adminForm,
+			is_popup=False,
+			show_save_and_continue=False,
+			media=media,
+			inline_admin_formsets=inline_formsets,
+			errors=helpers.AdminErrorList(form, formsets),
+			preserved_filters=self.get_preserved_filters(request),
+		)
+		return self.render_change_form(request, context, add=True, change=False, obj=None)
+
+@admin.register(SchoolYear)
+class SchoolYearAdmin(admin.ModelAdmin):
+	"""Creates admin interface for maintaining school years.
+	"""
+	list_display = ('start', 'end', 'isCurrent')
+

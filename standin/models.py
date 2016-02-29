@@ -20,8 +20,7 @@
 from django.db import models
 from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
-from datetime import datetime
-import pytz
+import pytz, datetime
 
 class Teacher(models.Model):
 	"""A teacher in school.
@@ -78,8 +77,10 @@ class SchoolYear(models.Model):
 
 	def isCurrent(self):
 		"""Checks if this school year is the current one."""
-		now = datetime.now().replace(tzinfo=pytz.timezone(settings.TIME_ZONE)) if settings.USE_TZ else datetime.now()
-		return now >= start and now <= end
+		now = datetime.date.today()
+		return now >= self.start and now <= self.end
+	isCurrent.boolean = True
+	isCurrent.short_description = 'Current school year'
 
 class Division(models.Model):
 	"""Different divisions ("School Type") in a school.
@@ -106,10 +107,13 @@ class Course(models.Model):
 	on the weekday and the time.
 
 	Important: the table can and will change every year!
+
 	"""
+	#FIXME: add validator when saving, that the schoolYear does not already exist!
 
 	class Meta:
 		verbose_name = _('Course')
+		unique_together = ('schoolYear', 'name')
 
 	schoolYear = models.ForeignKey(SchoolYear, verbose_name=_('School year'))
 	teacher = models.ForeignKey(Teacher, verbose_name=_('Original teacher'))
