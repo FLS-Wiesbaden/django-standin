@@ -22,7 +22,7 @@ from django.contrib.admin import helpers
 from django.contrib import messages
 from django.shortcuts import redirect
 from django.template import RequestContext
-from standin.models import SchoolYear, Plan
+from standin.models import SchoolYear, Plan, Teacher, Subject, Division, Grade
 from standin.forms import PlanUploadForm
 from django.utils.translation import ugettext as _
 
@@ -84,4 +84,24 @@ class SchoolYearAdmin(admin.ModelAdmin):
 	"""Creates admin interface for maintaining school years.
 	"""
 	list_display = ('start', 'end', 'isCurrent')
+
+@admin.register(Teacher)
+class TeacherAdmin(admin.ModelAdmin):
+	"""Creates admin interface for maintaining teachers."""
+	list_display = ('id', 'get_full_name', 'code')
+
+@admin.register(Subject)
+class SubjectAdmin(admin.ModelAdmin):
+	"""Creates admin interface for maintaining subjects."""
+	list_display = ('id', 'fullname', 'code')
+
+@admin.register(Division)
+class DivisionAdmin(admin.ModelAdmin):
+	"""Creates admin interface for maintaining divisions."""
+	list_display = ('id', 'name', 'code')
+
+@admin.register(Grade)
+class GradeAdmin(admin.ModelAdmin):
+	"""Creates admin interface for maintaining classes."""
+	list_display = ('id', 'code', 'getDivision')
 

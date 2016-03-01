@@ -18,8 +18,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from django import forms
-from standin.models import Plan
+from django.apps import apps as django_apps
+from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
+from standin.models import Plan, Teacher
+import importlib
 
 class PlanUploadForm(forms.Form):
 	"""Creates admin form to upload a plan manually.
@@ -31,5 +34,16 @@ class PlanUploadForm(forms.Form):
 
 	def save(self):
 		# we need to find a parser for the file!
-		pass
+		planFile = self.cleaned_data['plan'].file.name
+		mod = getattr(settings, 'PLAN_PARSER_MODEL', None)
+		if mod is None:
+			raise Exception('Parser is not defined in settings!')
+
+		mod, parser = mod.rsplit('.', 1)
+		mod = importlib.import_module(mod)
+		mod = getattr(mod, parser)
+		parser = mod(planFile)
+		parser.parse()
+		# remove uploaded file
+		self.cleaned_data['plan'].file.close()
 
