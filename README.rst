@@ -8,6 +8,10 @@ The application is published as GPL v3 as it should be free and open for all sch
 
 Detailed documentation is in the "docs" directory.
 
+Dependencies
+-----------
+ - Requires the bitfield-extension from Disqus (https://github.com/disqus/django-bitfield; Apache License).
+
 Quick start
 -----------
 

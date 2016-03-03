@@ -18,8 +18,22 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from django.shortcuts import render
+from django.http import HttpResponse
+from standin.models import Plan, PlanEntry
 
-# Create your views here.
+def pupil(request):
+	plan = Plan.objects.first()
+	if plan is not None:
+		pupilPlan = plan.getPupilPlan()
+	else:
+		pupilPlan = []
+	context = {
+		'plan': plan,
+		'planEntries': pupilPlan,
+	}
+	return HttpResponse(render(request, 'standin/pupil.html', context))
 
-def index():
-	pass
+def teacher(request):
+	context = {}
+	return HttpResponse(render(request, 'standin/teacher.html', context))
+

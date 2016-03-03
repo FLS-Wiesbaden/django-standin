@@ -165,7 +165,7 @@ class DavinciJsonParser(BaseParser):
 		"""Parses one change entry (can produce multiple records)."""
 		# they have different dates, depending on when the changes do apply.
 		entryDates = []
-		vptype = PlanEntry.TYPE_UNKNOWN
+		vptype = PlanEntry.vptype.UNKNOWN
 		for dt in les['dates']:
 			entryDates.append(datetime.strptime(dt, '%Y%m%d').date())
 
@@ -214,14 +214,14 @@ class DavinciJsonParser(BaseParser):
 		chgSubject = None
 		if 'newSubjectCode' in les['changes'].keys():
 			chgSubject = Subject.objects.get(code=les['changes']['newSubjectCode'])
-			vptype = vptype | PlanEntry.TYPE_SUBJECT
+			vptype = vptype | PlanEntry.vptype.SUBJECT
 
 		# Supply teacher (yes, DaVinci assumes, that there are multiple teachers - in theory not wrong).
 		chgTeacher = None
 		if 'newTeacherCode' in les['changes'].keys():
 			for t in les['changes']['newTeacherCodes']:
 				chgTeacher = Teacher.objects.get(code=t)
-				vptype = vptype | PlanEntry.TYPE_TEACHER
+				vptype = vptype | PlanEntry.vptype.TEACHER
 				break
 
 		# New room (no idea, how a course can be in different rooms...)?
@@ -229,12 +229,12 @@ class DavinciJsonParser(BaseParser):
 		if 'newRoomCodes' in les['changes'].keys():
 			for t in les['changes']['newRoomCodes']:
 				chgRoom = t
-				vptype = vptype | PlanEntry.TYPE_ROOM
+				vptype = vptype | PlanEntry.vptype.ROOM
 				break
 
 		# Possibility is, that the class will be absent.
 		if 'reasonType' in les['changes'].keys() and les['changes']['reasonType'] == 'classAbsence':
-			vptype = vptype | PlanEntry.TYPE_CANCELLED
+			vptype = vptype | PlanEntry.vptype.CANCELLED
 
 		# Or that the hour was moved or cancelled.
 		chgDate = None
@@ -245,7 +245,7 @@ class DavinciJsonParser(BaseParser):
 		if 'cancelled' in les['changes'].keys():
 			if les['changes']['cancelled'] == 'movedAway':
 				# possibility 1: just moved.
-				vptype = vptype | PlanEntry.TYPE_MOVED_TO
+				vptype = vptype | PlanEntry.vptype.MOVED_TO
 				# FIXME: lets extract the details.
 				if 'caption' in les['changes'].keys():
 					regex_moved_to = getattr(settings, 'PLAN_PARSER_REGEX_MOVED_TO', None)
@@ -290,17 +290,17 @@ class DavinciJsonParser(BaseParser):
 							# now the times. ==> skipped @ FIXME!
 			elif les['changes']['cancelled'] == 'classFree' or les['changes']['cancelled'] == 'lessonCancelled':
 				# possibility 2: cancelled.
-				vptype = vptype | PlanEntry.TYPE_FREE
+				vptype = vptype | PlanEntry.vptype.FREE
 
 		# This entry could also be the inverse one to the above one (we need to parse the info field).
-		if 'caption' in les['changes'].keys() and (vptype & PlanEntry.TYPE_FREE) != PlanEntry.TYPE_FREE \
-		 and (vptype & PlanEntry.TYPE_MOVED_TO) != PlanEntry.TYPE_MOVED_TO:
+		if 'caption' in les['changes'].keys() and (vptype & PlanEntry.vptype.FREE) != PlanEntry.vptype.FREE \
+		 and (vptype & PlanEntry.vptype.MOVED_TO) != PlanEntry.vptype.MOVED_TO:
 			regex_moved_from = getattr(settings, 'PLAN_PARSER_REGEX_MOVED_FROM', None)
 			if regex_moved_from is not None:
 				matchMove = re.compile(regex_moved_from)
 				r = matchMove.match(les['changes']['caption'])
 				if r is not None:
-					vptype = vptype | PlanEntry.TYPE_MOVED_FROM
+					vptype = vptype | PlanEntry.vptype.MOVED_FROM
 					now = datetime(
 						entryDates[0].year,
 						entryDates[0].month,

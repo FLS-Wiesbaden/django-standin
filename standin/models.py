@@ -20,6 +20,8 @@
 from django.db import models
 from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
+from bitfield import BitField
+from standin.helpers import PlanIterer, PlanEntryGroup
 import pytz, datetime, uuid
 
 class Teacher(models.Model):
@@ -203,7 +205,7 @@ class Plan(models.Model):
 	
 	vpdtup = models.DateTimeField(auto_now_add=True, verbose_name=_('Upload date and time'))
 	vpstand = models.DateTimeField(verbose_name=_('Date and time of data'))
-	# we should consider only active, finished records (so we can create plans without breaking the 
+	# we should consider only active, finished records (so we can create plans without breaking
 	# the view)
 	vpactive = models.BooleanField(default=False, verbose_name=_('Active'))
 	
@@ -219,9 +221,71 @@ class Plan(models.Model):
 		self.vpactive = True
 		self.save()
 
+	def getAvailableDays(self):
+		"""Returns all days which are sent in this plan."""
+		return self.entries.values('day').distinct()
+
+	def getNextDays(self, days=2, strDate=None):
+		"""Return only those n-days in future."""
+		# If no date is given, start from today.
+		if strDate is None:
+			strDate = datetime.date.today()
+			strDate = datetime.date(2016, 1, 25)
+		# At least one day must be given!
+		if days < 1:
+			days = 1
+		return self.entries.values('day').filter(day__gte=strDate).distinct()[:days]
+
+	def getNextDayEntries(self, days=2):
+		"""Return only the entries of next n-days."""
+		# get the available days.
+		days = self.getNextDays(days)
+		if len(days) <= 0:
+			return []
+		else:
+			return self.entries.filter(day__in=days).all()
+
+	def getPupilPlan(self, days=2, grades = [], group=True):
+		"""Returns a prepared plan for pupil view for the next n-days."""
+		result = PlanIterer()
+
+		# first get a list of days.
+		days = self.getNextDays(days)
+		[result.addDay(d['day']) for d in days]
+
+		# Get all entries for the given criteria.
+		entries = self.entries.filter(day__in=days, vptype__gt=0)
+		# only for specific grades?
+		if len(grades) > 0:
+			entries = entries.filter(grade__in=grades)
+		# ignore duties!
+		entries = entries.exclude(vptype__exact=PlanEntry.vptype.DUTY)
+		entries = entries.order_by('day', 'grade__code', 'hour')
+		# now we need to group and to put it in right place.
+		previousEntry = None
+		for e in entries.all():
+			# first entry?
+			if previousEntry is None:
+				previousEntry = e
+				continue
+			# Is it similiar?
+			if e.similiar(previousEntry):
+				if hasattr(previousEntry, 'is_group'):
+					previousEntry.add(e)
+				else:
+					previousEntry = PlanEntryGroup.createGroup(previousEntry, e)
+			else:
+				result.addEntry(previousEntry)
+				previousEntry = e
+		# Left entry?
+		if previousEntry is not None:
+			result.addEntry(previousEntry)
+			del(previousEntry)
+
+		return result
+
 class PlanEntry(models.Model):
-	"""An entry of a plan.
-	"""
+	"""An entry of a plan."""
 	TYPE_UNKNOWN = 0
 	TYPE_CANCELLED = 1
 	TYPE_ROOM = 2
@@ -237,7 +301,7 @@ class PlanEntry(models.Model):
 		verbose_name = _('Standin')
 	
 	# An entry is always a part of a "plan". Add the reference here.
-	header = models.ForeignKey(Plan, verbose_name=_('Plan header'))
+	header = models.ForeignKey(Plan, verbose_name=_('Plan header'), related_name='entries')
 	day = models.DateField(verbose_name=_('Day of standin'))
 	# A normal class has different hours. But that could be irritating, as
 	# there are also 0. hour or sometimes e.g. DaVinci can also provide schoolyard duties.
@@ -266,8 +330,43 @@ class PlanEntry(models.Model):
 	note = models.TextField(max_length=550, null=True, verbose_name=_('Information'))
 	# Depending on the data, there are different types
 	# (e.g. moved, free, normal standin, cancelled).
-	vptype = models.PositiveSmallIntegerField(verbose_name=_('Type of standin'))
-	
+	vptype = BitField(flags=(
+		'UNKNOWN',
+		'CANCELLED',
+		'ROOM',
+		'TEACHER',
+		'SUBJECT',
+		'DATETIME',
+		'MOVED_FROM',
+		'MOVED_TO',
+		'FREE',
+		'DUTY'
+	))
+
+	def similiar(self, entry):
+		"""Compares two objects and checks whether they're similiar (beside of hour)."""
+		# if the hour difference is already > 1, cannot group them!
+		if (self.hour - entry.hour) > 1:
+			return False
+
+		for attr in self.__dict__:
+			# skip hidden one and hour, timeStart and timeEnd
+			if attr in ['id', 'hour', 'timeStart', 'timeEnd'] or attr.startswith('_'):
+				continue
+			elif not hasattr(entry, attr):
+				return False
+			elif getattr(self, attr) != getattr(entry, attr):
+				return False
+
+		return True
+
+	@property
+	def isCancelled(self):
+		return self.vptype.CANCELLED
+
+	def getHour(self):
+		return self.hour
+
 	def __str__(self):
 		"""Returns representation of a plan entry"""
 		return 'Plan entry on %s' % (
