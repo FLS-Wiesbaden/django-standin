@@ -51,16 +51,16 @@ class DavinciJsonParser(BaseParser):
 
 		self._jsonfile = fileobj
 
-	def parse(self):
-		"""Parses the davinci json file!"""
 		# Get the current school year. If nothing is defined,
 		# we do not need to process the file!
-		schoolYear = None
+		self.schoolYear = None
 		try:
-			schoolYear = SchoolYear.getCurrentYear()
+			self.schoolYear = SchoolYear.getCurrentYear()
 		except:
-			raise PlanParseException('No matching school year defined!')
+			raise PlanParseException('No matching school year defined!') 
 
+	def parse(self):
+		"""Parses the davinci json file!"""
 		# load the file
 		planContent = self._jsonfile.read()
 
@@ -353,7 +353,7 @@ class DavinciJsonParser(BaseParser):
 			# first get the subject.
 			subject = Subject.objects.get(id=tf['subjectRef'])
 			Course.objects.get_or_create(
-				id=tf['id'], schoolYear=schoolYear, subject=subject, name=tf['title']
+				id=tf['id'], schoolYear=self.schoolYear, subject=subject, name=tf['title']
 			)
 
 	def parseClasses(self, planContent):
@@ -368,7 +368,7 @@ class DavinciJsonParser(BaseParser):
 					if div is not None:
 						break
 			Grade.objects.get_or_create(
-				id=tf['id'], code=tf['code'], division=div, schoolYear=schoolYear
+				id=tf['id'], code=tf['code'], division=div, schoolYear=self.schoolYear
 			)
 
 	def parseTimeFrames(self, planContent):
