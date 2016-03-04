@@ -18,11 +18,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from django import forms
-from django.apps import apps as django_apps
-from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
 from standin import settings as app_settings
-from standin.models import Plan, Teacher
 import importlib, gzip
 
 class PlanUploadForm(forms.Form):

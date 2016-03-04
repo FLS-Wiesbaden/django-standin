@@ -23,7 +23,7 @@ from django.utils.translation import ugettext_lazy as _
 from bitfield import BitField
 from standin.helpers import PlanIterer, PlanEntryGroup
 from standin import settings as app_settings
-import pytz, datetime, uuid
+import datetime, uuid
 
 class Teacher(models.Model):
 	"""A teacher in school.
@@ -285,18 +285,19 @@ class Plan(models.Model):
 		else:
 			return self.entries.filter(day__in=days).all()
 
-	def getPupilPlan(self, days=2, grades = [], group=True):
+	def getPupilPlan(self, days=2, grades = None, group=True):
 		"""Returns a prepared plan for pupil view for the next n-days."""
 		result = PlanIterer()
 
 		# first get a list of days.
 		days = self.getNextDays(days)
-		[result.addDay(d['day']) for d in days]
+		for d in days:
+			result.addDay(d['day'])
 
 		# Get all entries for the given criteria.
 		entries = self.entries.filter(day__in=days, vptype__gt=0)
 		# only for specific grades?
-		if len(grades) > 0:
+		if grades is not None and len(grades) > 0:
 			entries = entries.filter(grade__in=grades)
 		# ignore duties!
 		entries = entries.exclude(vptype__exact=PlanEntry.vptype.DUTY)
@@ -309,7 +310,7 @@ class Plan(models.Model):
 				previousEntry = e
 				continue
 			# Is it similiar?
-			if e.similiar(previousEntry):
+			if group and e.similiar(previousEntry):
 				if hasattr(previousEntry, 'is_group'):
 					previousEntry.add(e)
 				else:

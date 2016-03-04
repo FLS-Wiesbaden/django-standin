@@ -20,7 +20,7 @@
 from django.conf import settings
 from standin import settings as app_settings
 from standin.models import Teacher, Subject, SchoolYear, Division, Course, Plan, PlanEntry, Grade
-from datetime import datetime, date
+from datetime import datetime
 import django.dispatch
 import json, pytz, re
 
@@ -70,7 +70,7 @@ class DavinciJsonParser(BaseParser):
 		# get the encoding from settings (default: utf-8) and decode it.
 		try:
 			planContent = json.loads(planContent.decode(app_settings.get(app_settings.PLAN_FILES_ENCODING)))
-		except:
+		except ValueError:
 			# in case of UTF-8, we try also the sig variant.
 			if app_settings.get(app_settings.PLAN_FILES_ENCODING) == 'utf-8':
 				planContent = json.loads(planContent.decode('utf-8-sig'))
@@ -137,7 +137,7 @@ class DavinciJsonParser(BaseParser):
 			if tf['code'] == 'Standard':
 				for t in tf['timeslots']:
 					self.timeframes[t['startTime']] = int(t['label'])
-		del(t)
+				del(t)
 
 		# Get each change.
 		self.plan.save()
@@ -180,9 +180,6 @@ class DavinciJsonParser(BaseParser):
 			hour = self.timeframes[les['startTime']]
 		else:
 			hour = None
-
-		# Get the subject
-		subject = Subject.objects.get(code=les['subjectCode'])
 
 		# Get the teacher
 		teacher = None
@@ -301,7 +298,7 @@ class DavinciJsonParser(BaseParser):
 
 		# This entry could also be the inverse one to the above one (we need to parse the info field).
 		if 'caption' in les['changes'].keys() and (vptype & PlanEntry.vptype.FREE) != PlanEntry.vptype.FREE \
-		 and (vptype & PlanEntry.vptype.MOVED_TO) != PlanEntry.vptype.MOVED_TO:
+			and (vptype & PlanEntry.vptype.MOVED_TO) != PlanEntry.vptype.MOVED_TO:
 			regex_moved_from = app_settings.get(app_settings.PLAN_PARSER_REGEX_MOVED_FROM)
 			if regex_moved_from is not None:
 				matchMove = re.compile(regex_moved_from)

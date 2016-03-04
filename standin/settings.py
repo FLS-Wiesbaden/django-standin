@@ -24,8 +24,16 @@ from django.utils.translation import ugettext_lazy as _
 
 PLAN_FILES_ENCODING = getattr(settings, 'PLAN_FILES_ENCODING', 'utf-8')
 PLAN_PARSER_MODEL = getattr(settings, 'PLAN_PARSER_MODEL', 'standin.parser.DavinciJsonParser')
-PLAN_PARSER_REGEX_MOVED_TO = getattr(settings, 'PLAN_PARSER_REGEX_MOVED_TO', '^Auf (?P<day>[0-9]{1,2})\.(?P<month>[0-9]{1,2})\. (?P<weekday>[a-zA-Z]{2}) (?P<startHour>[0-9]{1,2})(-(?P<endHour>[0-9]{1,2}))? verschoben$')
-PLAN_PARSER_REGEX_MOVED_FROM = getattr(settings, 'PLAN_PARSER_REGEX_MOVED_TO', '^Von (?P<day>[0-9]{1,2})\.(?P<month>[0-9]{1,2})\. (?P<weekday>[a-zA-Z]{2}) (?P<startHour>[0-9]{1,2})(-(?P<endHour>[0-9]{1,2}))? verschoben$')
+PLAN_PARSER_REGEX_MOVED_TO = getattr(
+	settings, 
+	'PLAN_PARSER_REGEX_MOVED_TO', 
+	'^Auf (?P<day>[0-9]{1,2})\.(?P<month>[0-9]{1,2})\. (?P<weekday>[a-zA-Z]{2}) (?P<startHour>[0-9]{1,2})(-(?P<endHour>[0-9]{1,2}))? verschoben$'
+)
+PLAN_PARSER_REGEX_MOVED_FROM = getattr(
+	settings, 
+	'PLAN_PARSER_REGEX_MOVED_TO', 
+	'^Von (?P<day>[0-9]{1,2})\.(?P<month>[0-9]{1,2})\. (?P<weekday>[a-zA-Z]{2}) (?P<startHour>[0-9]{1,2})(-(?P<endHour>[0-9]{1,2}))? verschoben$'
+)
 PLAN_PUPIL_TEACHER_FULLNAME = getattr(settings, 'PLAN_PUPIL_TEACHER_FULLNAME', False)
 PLAN_PUPIL_TEACHER_SHORTCUT = getattr(settings, 'PLAN_PUPIL_TEACHER_SHORTCUT', False)
 PLAN_PUPIL_SUBJECT_FULLNAME = getattr(settings, 'PLAN_PUPIL_SUBJECT_FULLNAME', False)
@@ -49,34 +57,34 @@ try:
 		pref_group(
 			_('Standin parser settings'), (
 				PLAN_FILES_ENCODING, PLAN_PARSER_MODEL, PLAN_PARSER_REGEX_MOVED_TO, PLAN_PARSER_REGEX_MOVED_FROM
-			), 
+			),
 			static=False
 		),
 		pref(
-			PLAN_PUPIL_TEACHER_FULLNAME, 
-			field=BooleanField(), 
+			PLAN_PUPIL_TEACHER_FULLNAME,
+			field=BooleanField(),
 			static=False,
 			verbose_name=_('Show full name of teachers'),
 			category=_('Standin pupil view')
 		),
 		pref(
-			PLAN_PUPIL_TEACHER_SHORTCUT, 
-			field=BooleanField(), 
+			PLAN_PUPIL_TEACHER_SHORTCUT,
+			field=BooleanField(),
 			static=False,
 			verbose_name=_('Show abbreviation of teachers'),
 			help_text=_('This setting has only an affect if the full name of teachers are shown. In this case, the teachers abbreviation is appended in brackets.'),
 			category=_('Standin pupil view')
 		),
 		pref(
-			PLAN_PUPIL_SUBJECT_FULLNAME, 
-			field=BooleanField(), 
+			PLAN_PUPIL_SUBJECT_FULLNAME,
+			field=BooleanField(),
 			static=False,
 			verbose_name=_('Show full title of subject'),
 			category=_('Standin pupil view')
 		),
 		pref(
-			PLAN_PUPIL_SUBJECT_SHORTCUT, 
-			field=BooleanField(), 
+			PLAN_PUPIL_SUBJECT_SHORTCUT,
+			field=BooleanField(),
 			static=False,
 			verbose_name=_('Show abbreviation of subjects'),
 			help_text=_('This setting has only an affect if the full title of subjects are shown. In this case, the subject abbreviation is appended in brackets.'),

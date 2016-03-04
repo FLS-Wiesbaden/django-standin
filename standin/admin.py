@@ -17,6 +17,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from django.core.exceptions import PermissionDenied
 from django.contrib import admin
 from django.contrib.admin import helpers
 from django.contrib import messages
@@ -33,7 +34,7 @@ class PlanAdmin(admin.ModelAdmin):
 	But to add something, only upload is allowed!
 	"""
 	list_display = ('vpdtup', 'vpstand')
-    
+
 	def add_view(self, request):
 		context = RequestContext(request)
 		# has user permission?
