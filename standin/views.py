@@ -19,7 +19,7 @@
 
 from django.shortcuts import render
 from django.http import HttpResponse
-from standin.models import Plan, PlanEntry
+from standin.models import Plan
 
 def pupil(request):
 	plan = Plan.objects.latest()

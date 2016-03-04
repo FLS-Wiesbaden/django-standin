@@ -76,51 +76,14 @@ class DavinciJsonParser(BaseParser):
 				planContent = json.loads(planContent.decode('utf-8-sig'))
 			else:
 				raise
-		
-		# load the teacher first (to have a proper connection).
-		for tf in planContent['result']['teachers']:
-			t = Teacher.objects.get_or_create(id=tf['id'], code=tf['code'])
-			t = t[0]
-			t.first_name = tf['firstName'] if 'firstName' in tf else None
-			t.last_name = tf['lastName'] if 'lastName' in tf else None
-			t.save()
-		del(t)
 
-		# All subjects
-		for tf in planContent['result']['subjects']:
-			s = Subject.objects.get_or_create(id=tf['id'], code=tf['code'], fullname=tf['description'] if 'description' in tf else tf['code'])
-		del(s)
-
-		# All divisions
-		for tf in planContent['result']['teams']:
-			s = Division.objects.get_or_create(
-				id=tf['id'], code=tf['code'], name=tf['description'] if 'description' in tf else tf['code']
-			)
-		del(s)
-
-		# All courses (teacher must be learned later).
-		for tf in planContent['result']['courses']:
-			# first get the subject.
-			subject = Subject.objects.get(id=tf['subjectRef'])
-			s = Course.objects.get_or_create(
-				id=tf['id'], schoolYear=schoolYear, subject=subject, name=tf['title']
-			)
-		del(s)
-		del(subject)
-
-		# All classes
-		for tf in planContent['result']['classes']:
-			# find the division!
-			div = None
-			if 'teamRefs' in tf.keys():
-				for cl in tf['teamRefs']:
-					div = Division.objects.get(id=cl)
-					if div is not None:
-						break
-			s = Grade.objects.get_or_create(
-				id=tf['id'], code=tf['code'], division=div, schoolYear=schoolYear
-			)
-		del(s)
+		# parse file.
+		self.parseTeachers(planContent['result'])
+		self.parseSubjects(planContent['result'])
+		self.parseDivisions(planContent['result'])
+		self.parseCourses(planContent['result'])
+		self.parseClasses(planContent['result'])
+		self.parseTimeFrames(planContent['result'])
 
 		# Get the version of the file, in order to create the plan header.
 		version = planContent['about']['serverTimeStamp']
@@ -128,16 +91,6 @@ class DavinciJsonParser(BaseParser):
 		if settings.USE_TZ:
 			version = version.replace(tzinfo=pytz.timezone(settings.TIME_ZONE))
 		self.plan = Plan(vpstand=version)
-
-		# For the DaVinci plan, we first need to get the timetable in order to populate the 
-		# "hours" correctly.
-		self.timeframes = {}
-		for tf in planContent['result']['timeframes']:
-			# but only the standard one, not the duty one.
-			if tf['code'] == 'Standard':
-				for t in tf['timeslots']:
-					self.timeframes[t['startTime']] = int(t['label'])
-				del(t)
 
 		# Get each change.
 		self.plan.save()
@@ -152,9 +105,6 @@ class DavinciJsonParser(BaseParser):
 			result = self.parseChange(les)
 			changes.extend(result)
 			del(result)
-
-		# To make development easy:
-		#raise PlanParseException('Development in progress!')
 
 		# no error occured? Nice. Activate the plan!
 		for r in changes:
@@ -371,4 +321,64 @@ class DavinciJsonParser(BaseParser):
 				records.append(p)
 
 		return records
+
+	def parseTeachers(self, planContent):
+		"""Parses all teachers"""
+		# load the teacher first (to have a proper connection).
+		for tf in planContent['teachers']:
+			t = Teacher.objects.get_or_create(id=tf['id'], code=tf['code'])
+			t = t[0]
+			t.first_name = tf['firstName'] if 'firstName' in tf else None
+			t.last_name = tf['lastName'] if 'lastName' in tf else None
+			t.save()
+
+	def parseSubjects(self, planContent):
+		"""Parses all subjects from file"""
+		# All subjects
+		for tf in planContent['subjects']:
+			Subject.objects.get_or_create(id=tf['id'], code=tf['code'], fullname=tf['description'] if 'description' in tf else tf['code'])
+
+	def parseDivisions(self, planContent):
+		"""Parses all divisions from file"""
+		# All divisions
+		for tf in planContent['teams']:
+			Division.objects.get_or_create(
+				id=tf['id'], code=tf['code'], name=tf['description'] if 'description' in tf else tf['code']
+			)
+
+	def parseCourses(self, planContent):
+		"""Parses all courses from file"""
+		# All courses (teacher must be learned later).
+		for tf in planContent['courses']:
+			# first get the subject.
+			subject = Subject.objects.get(id=tf['subjectRef'])
+			Course.objects.get_or_create(
+				id=tf['id'], schoolYear=schoolYear, subject=subject, name=tf['title']
+			)
+
+	def parseClasses(self, planContent):
+		"""Parses all classes from file"""
+		# All classes
+		for tf in planContent['classes']:
+			# find the division!
+			div = None
+			if 'teamRefs' in tf.keys():
+				for cl in tf['teamRefs']:
+					div = Division.objects.get(id=cl)
+					if div is not None:
+						break
+			Grade.objects.get_or_create(
+				id=tf['id'], code=tf['code'], division=div, schoolYear=schoolYear
+			)
+
+	def parseTimeFrames(self, planContent):
+		"""Parses timetable from file"""
+		# For the DaVinci plan, we first need to get the timetable in order to populate the 
+		# "hours" correctly.
+		self.timeframes = {}
+		for tf in planContent['timeframes']:
+			# but only the standard one, not the duty one.
+			if tf['code'] == 'Standard':
+				for t in tf['timeslots']:
+					self.timeframes[t['startTime']] = int(t['label'])
 
