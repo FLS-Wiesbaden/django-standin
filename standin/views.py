@@ -22,7 +22,7 @@ from django.http import HttpResponse
 from standin.models import Plan, PlanEntry
 
 def pupil(request):
-	plan = Plan.objects.first()
+	plan = Plan.objects.latest()
 	if plan is not None:
 		pupilPlan = plan.getPupilPlan()
 	else:

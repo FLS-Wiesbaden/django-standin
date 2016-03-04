@@ -12,6 +12,10 @@ Dependencies
 -----------
  - Requires the bitfield-extension from Disqus (https://github.com/disqus/django-bitfield; Apache License).
 
+Configuration
+-----------
+This application supports the [django-siteprefs] extension. Just install it according to the package instructions.
+
 Quick start
 -----------
 

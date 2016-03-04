@@ -18,6 +18,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from django.conf import settings
+from standin import settings as app_settings
 from standin.models import Teacher, Subject, SchoolYear, Division, Course, Plan, PlanEntry, Grade
 from datetime import datetime, date
 import django.dispatch
@@ -45,10 +46,10 @@ class BaseParser:
 class DavinciJsonParser(BaseParser):
 	"""Parser to parse a DaVinci export in JSON format."""
 
-	def __init__(self, jsonfile):
+	def __init__(self, fileobj):
 		super().__init__()
 
-		self.jsonfile = jsonfile
+		self._jsonfile = fileobj
 
 	def parse(self):
 		"""Parses the davinci json file!"""
@@ -61,20 +62,17 @@ class DavinciJsonParser(BaseParser):
 			raise PlanParseException('No matching school year defined!')
 
 		# load the file
-		planContent = None
-		with open(self.jsonfile, 'rb') as f:
-			planContent = f.read()
+		planContent = self._jsonfile.read()
 
 		if planContent is None:
 			raise PlanParseException('File not readable.')
 
 		# get the encoding from settings (default: utf-8) and decode it.
-		PLAN_FILES_ENCODING = getattr(settings, 'PLAN_FILES_ENCODING', 'utf-8').lower()
 		try:
-			planContent = json.loads(planContent.decode(PLAN_FILES_ENCODING))
+			planContent = json.loads(planContent.decode(app_settings.get(app_settings.PLAN_FILES_ENCODING)))
 		except:
 			# in case of UTF-8, we try also the sig variant.
-			if PLAN_FILES_ENCODING == 'utf-8':
+			if app_settings.get(app_settings.PLAN_FILES_ENCODING) == 'utf-8':
 				planContent = json.loads(planContent.decode('utf-8-sig'))
 			else:
 				raise
@@ -82,6 +80,10 @@ class DavinciJsonParser(BaseParser):
 		# load the teacher first (to have a proper connection).
 		for tf in planContent['result']['teachers']:
 			t = Teacher.objects.get_or_create(id=tf['id'], code=tf['code'])
+			t = t[0]
+			t.first_name = tf['firstName'] if 'firstName' in tf else None
+			t.last_name = tf['lastName'] if 'lastName' in tf else None
+			t.save()
 		del(t)
 
 		# All subjects
@@ -165,7 +167,7 @@ class DavinciJsonParser(BaseParser):
 		"""Parses one change entry (can produce multiple records)."""
 		# they have different dates, depending on when the changes do apply.
 		entryDates = []
-		vptype = PlanEntry.vptype.UNKNOWN
+		vptype = 0
 		for dt in les['dates']:
 			entryDates.append(datetime.strptime(dt, '%Y%m%d').date())
 
@@ -208,6 +210,11 @@ class DavinciJsonParser(BaseParser):
 		for r in les['roomCodes']:
 			room = r
 			break
+		# Sometimes, the original given room contains already the new room, we don't want this; we need the original one!
+		if 'absentRoomCodes' in les['changes'].keys():
+			for r in les['changes']['absentRoomCodes']:
+				room = r
+				break
 
 		# Details about the changes.
 		# The supply subject is?
@@ -218,7 +225,7 @@ class DavinciJsonParser(BaseParser):
 
 		# Supply teacher (yes, DaVinci assumes, that there are multiple teachers - in theory not wrong).
 		chgTeacher = None
-		if 'newTeacherCode' in les['changes'].keys():
+		if 'newTeacherCodes' in les['changes'].keys():
 			for t in les['changes']['newTeacherCodes']:
 				chgTeacher = Teacher.objects.get(code=t)
 				vptype = vptype | PlanEntry.vptype.TEACHER
@@ -248,7 +255,7 @@ class DavinciJsonParser(BaseParser):
 				vptype = vptype | PlanEntry.vptype.MOVED_TO
 				# FIXME: lets extract the details.
 				if 'caption' in les['changes'].keys():
-					regex_moved_to = getattr(settings, 'PLAN_PARSER_REGEX_MOVED_TO', None)
+					regex_moved_to = app_settings.get(app_settings.PLAN_PARSER_REGEX_MOVED_TO)
 					if regex_moved_to is not None:
 						matchMove = re.compile(regex_moved_to)
 						r = matchMove.match(les['changes']['caption'])
@@ -295,7 +302,7 @@ class DavinciJsonParser(BaseParser):
 		# This entry could also be the inverse one to the above one (we need to parse the info field).
 		if 'caption' in les['changes'].keys() and (vptype & PlanEntry.vptype.FREE) != PlanEntry.vptype.FREE \
 		 and (vptype & PlanEntry.vptype.MOVED_TO) != PlanEntry.vptype.MOVED_TO:
-			regex_moved_from = getattr(settings, 'PLAN_PARSER_REGEX_MOVED_FROM', None)
+			regex_moved_from = app_settings.get(app_settings.PLAN_PARSER_REGEX_MOVED_FROM)
 			if regex_moved_from is not None:
 				matchMove = re.compile(regex_moved_from)
 				r = matchMove.match(les['changes']['caption'])

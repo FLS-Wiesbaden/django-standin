@@ -21,8 +21,9 @@ from django import forms
 from django.apps import apps as django_apps
 from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
+from standin import settings as app_settings
 from standin.models import Plan, Teacher
-import importlib
+import importlib, gzip
 
 class PlanUploadForm(forms.Form):
 	"""Creates admin form to upload a plan manually.
@@ -34,14 +35,19 @@ class PlanUploadForm(forms.Form):
 
 	def save(self):
 		# we need to find a parser for the file!
-		planFile = self.cleaned_data['plan'].file.name
-		mod = getattr(settings, 'PLAN_PARSER_MODEL', None)
+		mod = app_settings.get(app_settings.PLAN_PARSER_MODEL)
 		if mod is None:
 			raise Exception('Parser is not defined in settings!')
 
 		mod, parser = mod.rsplit('.', 1)
 		mod = importlib.import_module(mod)
 		mod = getattr(mod, parser)
+		# is it gzip compressed?
+		if self.cleaned_data['plan'].name.endswith('.gz'):
+			planFile = gzip.GzipFile(fileobj=self.cleaned_data['plan'].file)
+		else:
+			planFile = self.cleaned_data['plan'].file
+
 		parser = mod(planFile)
 		parser.parse()
 		# remove uploaded file

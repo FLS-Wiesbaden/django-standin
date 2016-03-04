@@ -30,18 +30,23 @@
 			<tbody>
 			{% for grade in day %}
 			<tr class="standin_class_title">
-				<td colspan="9"><span class="class_name">{% trans "Class:" %} {{ grade.grade.code }}</span><span class="school_name"></span></td>
+				<td colspan="9"><span class="class_name">{% trans "Class:" %} {{ grade.grade.code }}</span><span class="school_name">{% if grade.grade.division %}{{ grade.grade.division.name }}{% endif %}</span></td>
 			</tr>
 				{% for entry in grade %}
 					<tr class="standin_row {% if forloop.counter0|divisibleby:2 %}standin_hilight_row{% endif %}">
 						<td>{{ entry.getHour }}</td>
-						<td>{{ entry.course.teacher.code }}</td>
-						<td>{{ entry.course.subject.code }}</td>
+						<td>{{ entry.course.teacher.dspName }}</td>
+						<td>{{ entry.course.subject.dspName }}</td>
 						<td>{{ entry.room }}</td>
-						<td>{{ entry.supplyTeacher.code }}</td>
-						<td>{{ entry.supplySubject.code }}</td>
+						<td>{{ entry.supplyTeacher.dspName }}</td>
+						<td>{{ entry.supplySubject.dspName }}</td>
 						<td>{{ entry.supplyRoom|default:'' }}</td>
-						<td>{% if entry.isCancelled %}<span class="cancelled">{% trans "Cancelled" %}</span>{% endif %}{{ entry.note|default:'' }}</td>
+						<td>{% if entry.note %}{{ entry.note|default:'' }}
+							{% elif entry.isCancelled %}<span class="cancelled">{% trans "Cancelled" %}</span>
+							{% elif entry.isFree %}<span class="free">{% trans "Free" %}</span>
+							{% elif entry.isMovedTo %}<span class="move moved_to">{% blocktrans with mvDay=entry.supplyDate|date:"d.m." supHour=entry.getSupplyHour %}Moved to {{ mvDay }} {{ supHour }} h{% endblocktrans %}</span>
+							{% elif entry.isMovedFrom %}<span class="move moved_from">{% blocktrans with mvDay=entry.supplyDate|date:"d.m." supHour=entry.getSupplyHour %}Moved from {{ mvDay }} {{ supHour }} h{% endblocktrans %}</span>
+							{% else %}{% endif %}</td>
 					</tr>
 				{% endfor %}
 			<tr class="standin_blank">

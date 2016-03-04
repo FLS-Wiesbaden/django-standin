@@ -22,6 +22,7 @@ from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
 from bitfield import BitField
 from standin.helpers import PlanIterer, PlanEntryGroup
+from standin import settings as app_settings
 import pytz, datetime, uuid
 
 class Teacher(models.Model):
@@ -48,14 +49,38 @@ class Teacher(models.Model):
 		null=True
 	)
 	# the teacher must have a "nickname"
+	first_name = models.CharField(max_length=120, null=True)
+	last_name = models.CharField(max_length=120, null=True)
 	code = models.CharField(max_length=120, unique=True, null=True)
 
 	def get_full_name(self):
+		"""Get the full name of the teacher"""
 		if self.user is None:
-			return ''
+			if self.first_name is None or self.last_name is None:
+				return self.code
+			else:
+				return '%s %s' % (self.first_name, self.last_name)
 		else:
 			return self.user.get_full_name()
 	get_full_name.short_description = _('Full name')
+
+	@property
+	def dspName(self):
+		"""Returns the name to display according to the settings."""
+		# if the full name is not available, return the code.
+		if (self.user is None and (self.first_name is None or self.last_name is None)) or not app_settings.get(app_settings.PLAN_PUPIL_TEACHER_FULLNAME):
+			return self.code
+
+		dspName = self.get_full_name()
+		# append abbreviation?
+		if app_settings.get(app_settings.PLAN_PUPIL_TEACHER_SHORTCUT):
+			dspName += ' (%s)' % (self.code,)
+
+		return dspName
+
+	def __str__(self):
+		"""Returns representation of a teacher"""
+		return '%s' % (self.code,)
 
 class Subject(models.Model):
 	"""Describes a subject
@@ -76,6 +101,20 @@ class Subject(models.Model):
 	# the attributes cannot change!
 	fullname = models.CharField(max_length=80)
 	code = models.CharField(max_length=20, unique=True)
+
+	@property
+	def dspName(self):
+		"""Returns the name to display according to the settings."""
+		# if the full name is not available, return the code.
+		if self.fullname is None or not app_settings.get(app_settings.PLAN_PUPIL_SUBJECT_FULLNAME):
+			return self.code
+
+		dspName = self.fullname
+		# append abbreviation?
+		if app_settings.get(app_settings.PLAN_PUPIL_SUBJECT_SHORTCUT):
+			dspName += ' (%s)' % (self.code,)
+
+		return dspName
 
 class SchoolYear(models.Model):
 	"""A year of a school
@@ -202,6 +241,7 @@ class Plan(models.Model):
 	class Meta:
 		verbose_name = _('Standin plan')
 		ordering = ['vpdtup']
+		get_latest_by = 'vpdtup'
 	
 	vpdtup = models.DateTimeField(auto_now_add=True, verbose_name=_('Upload date and time'))
 	vpstand = models.DateTimeField(verbose_name=_('Date and time of data'))
@@ -286,16 +326,6 @@ class Plan(models.Model):
 
 class PlanEntry(models.Model):
 	"""An entry of a plan."""
-	TYPE_UNKNOWN = 0
-	TYPE_CANCELLED = 1
-	TYPE_ROOM = 2
-	TYPE_TEACHER = 4
-	TYPE_SUBJECT = 8
-	TYPE_DATETIME = 16
-	TYPE_MOVED_FROM = 32
-	TYPE_MOVED_TO = 64
-	TYPE_FREE = 128
-	TYPE_DUTY = 512
 
 	class Meta:
 		verbose_name = _('Standin')
@@ -330,17 +360,17 @@ class PlanEntry(models.Model):
 	note = models.TextField(max_length=550, null=True, verbose_name=_('Information'))
 	# Depending on the data, there are different types
 	# (e.g. moved, free, normal standin, cancelled).
-	vptype = BitField(flags=(
-		'UNKNOWN',
-		'CANCELLED',
-		'ROOM',
-		'TEACHER',
-		'SUBJECT',
-		'DATETIME',
-		'MOVED_FROM',
-		'MOVED_TO',
-		'FREE',
-		'DUTY'
+	vptype = BitField(default=0, flags=(
+		#'UNKNOWN', # 0
+		'CANCELLED', # 1
+		'ROOM', # 2
+		'TEACHER', # 4
+		'SUBJECT', # 8
+		'DATETIME', # 16
+		'MOVED_FROM', # 32
+		'MOVED_TO', # 64
+		'FREE', # 128
+		'DUTY' # 512
 	))
 
 	def similiar(self, entry):
@@ -362,10 +392,29 @@ class PlanEntry(models.Model):
 
 	@property
 	def isCancelled(self):
+		"""Returns True if the class is cancelled and can stay home."""
 		return self.vptype.CANCELLED
 
+	@property
+	def isFree(self):
+		"""Returns True if a single lesson is cancelled."""
+		return self.vptype.FREE
+
+	@property
+	def isMovedFrom(self):
+		return self.vptype.MOVED_FROM
+
+	@property
+	def isMovedTo(self):
+		return self.vptype.MOVED_TO
+
 	def getHour(self):
-		return self.hour
+		return '%d.' % (self.hour,)
+
+	def getSupplyHour(self):
+		if self.supplyHour is None:
+			return ''
+		return '%d.' % (self.supplyHour,)
 
 	def __str__(self):
 		"""Returns representation of a plan entry"""

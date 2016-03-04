@@ -116,6 +116,11 @@ class PlanEntryGroup:
 		hours = [e.hour for e in self._entries]
 		return '%d.-%d.' % (min(hours), max(hours))
 
+	def getSupplyHour(self):
+		# min number.
+		hours = [e.supplyHour for e in self._entries]
+		return '%d.-%d.' % (min(hours), max(hours))
+
 	def is_group(self):
 		return True
 
