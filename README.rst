@@ -1,3 +1,7 @@
+.. image:: https://landscape.io/github/FLS-Wiesbaden/django-standin/master/landscape.svg?style=flat
+   :target: https://landscape.io/github/FLS-Wiesbaden/django-standin/master
+   :alt: Code Health
+
 =====
 Standin plan
 =====

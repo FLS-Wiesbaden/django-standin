@@ -1,0 +1,3 @@
+[run]
+include = standin/*
+omit = standin/tests.py
